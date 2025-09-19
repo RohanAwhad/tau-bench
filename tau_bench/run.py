@@ -64,57 +64,80 @@ def run(config: RunConfig) -> List[EnvRunResult]:
         if config.shuffle:
             random.shuffle(idxs)
 
-        def _run(idx: int) -> EnvRunResult:
-            isolated_env = get_env(
-                config.env,
-                user_strategy=config.user_strategy,
-                user_model=config.user_model,
-                task_split=config.task_split,
-                user_provider=config.user_model_provider,
-                task_index=idx,
-            )
+        def _run(idx: int) -> List[EnvRunResult]:
+            print(f"Running task {idx} with best-of-{config.best_of_n}")
 
-            print(f"Running task {idx}")
-            try:
-                res = agent.solve(
-                    env=isolated_env,
+            all_results = []
+            best_reward = 0.0
+
+            for attempt in range(config.best_of_n):
+                isolated_env = get_env(
+                    config.env,
+                    user_strategy=config.user_strategy,
+                    user_model=config.user_model,
+                    task_split=config.task_split,
+                    user_provider=config.user_model_provider,
                     task_index=idx,
                 )
-                result = EnvRunResult(
-                    task_id=idx,
-                    reward=res.reward,
-                    info=res.info,
-                    traj=res.messages,
-                    trial=i,
-                )
-            except Exception as e:
-                result = EnvRunResult(
-                    task_id=idx,
-                    reward=0.0,
-                    info={"error": str(e), "traceback": traceback.format_exc()},
-                    traj=[],
-                    trial=i,
-                )
-            print(
-                "✅" if result.reward == 1 else "❌",
-                f"task_id={idx}",
-                result.info,
-            )
+
+                print(f"  Attempt {attempt + 1}/{config.best_of_n} for task {idx}")
+                try:
+                    res = agent.solve(
+                        env=isolated_env,
+                        task_index=idx,
+                    )
+                    result = EnvRunResult(
+                        task_id=idx,
+                        reward=res.reward,
+                        info={**res.info, "attempt": attempt + 1, "best_of_n": config.best_of_n},
+                        traj=res.messages,
+                        trial=i,
+                    )
+                    best_reward = max(best_reward, res.reward)
+                except Exception as e:
+                    result = EnvRunResult(
+                        task_id=idx,
+                        reward=0.0,
+                        info={"error": str(e), "traceback": traceback.format_exc(), "attempt": attempt + 1, "best_of_n": config.best_of_n},
+                        traj=[],
+                        trial=i,
+                    )
+
+                all_results.append(result)
+                print(f"    ✅" if result.reward == 1 else "❌", f"Attempt {attempt + 1} reward: {result.reward}")
+
+            # Set the final reward: 1 if any attempt succeeded, 0 otherwise
+            final_reward = 1.0 if best_reward >= 1.0 else 0.0
+            print(f"  Final reward for task {idx}: {final_reward} (best attempt: {best_reward})")
             print("-----")
+
+            # Save all results
             with lock:
                 data = []
                 if os.path.exists(ckpt_path):
                     with open(ckpt_path, "r") as f:
                         data = json.load(f)
+
+                # Add metadata to indicate this is a best-of-n result
+                for result in all_results:
+                    result.info["final_best_of_n_reward"] = final_reward
+
                 with open(ckpt_path, "w") as f:
-                    json.dump(data + [result.model_dump()], f, indent=2)
-            return result
+                    json.dump(data + [result.model_dump() for result in all_results], f, indent=2)
+
+            return all_results
 
         with ThreadPoolExecutor(max_workers=config.max_concurrency) as executor:
             res = list(executor.map(_run, idxs))
-            results.extend(res)
+            # Flatten the list of lists
+            for task_results in res:
+                results.extend(task_results)
 
-    display_metrics(results)
+    # Calculate and display best-of-n metrics
+    if config.best_of_n > 1:
+        display_best_of_n_metrics(results, config.best_of_n)
+    else:
+        display_metrics(results)
 
     with open(ckpt_path, "w") as f:
         json.dump([result.model_dump() for result in results], f, indent=2)
@@ -176,6 +199,46 @@ def agent_factory(
         )
     else:
         raise ValueError(f"Unknown agent strategy: {config.agent_strategy}")
+
+
+def display_best_of_n_metrics(results: List[EnvRunResult], best_of_n: int) -> None:
+    def is_successful(reward: float) -> bool:
+        return (1 - 1e-6) <= reward <= (1 + 1e-6)
+
+    # Group results by task_id
+    task_groups = {}
+    for result in results:
+        task_id = result.task_id
+        if task_id not in task_groups:
+            task_groups[task_id] = []
+        task_groups[task_id].append(result)
+
+    print(f"🎯 Best-of-{best_of_n} Results:")
+    print("=" * 50)
+
+    total_tasks = len(task_groups)
+    successful_tasks = 0
+
+    for task_id, task_results in task_groups.items():
+        print(f"Task {task_id}:")
+        individual_rewards = [r.reward for r in task_results]
+        best_reward = max(individual_rewards)
+        final_reward = 1.0 if best_reward >= 1.0 else 0.0
+
+        print(f"  Individual attempt rewards: {individual_rewards}")
+        print(f"  Best reward: {best_reward}")
+        print(f"  Final best-of-{best_of_n} reward: {final_reward}")
+
+        if is_successful(final_reward):
+            successful_tasks += 1
+            print(f"  ✅ Task {task_id} PASSED")
+        else:
+            print(f"  ❌ Task {task_id} FAILED")
+        print()
+
+    success_rate = successful_tasks / total_tasks if total_tasks > 0 else 0
+    print(f"🏆 Overall Success Rate: {successful_tasks}/{total_tasks} = {success_rate:.2%}")
+    print(f"📊 Final Score: {success_rate}")
 
 
 def display_metrics(results: List[EnvRunResult]) -> None:
