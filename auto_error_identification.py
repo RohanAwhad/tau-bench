@@ -82,8 +82,10 @@ def context_description(grading_strategy: GradingStrategy) -> str:
 
 def display_traj(traj: List[Dict[str, Any]]) -> str:
     if len(traj) == 0:
-        raise ValueError("Trajectory is empty")
+        return "[Empty trajectory - likely due to an error during execution]"
     stripped_traj = [item for item in traj if item["role"] != "system"]
+    if len(stripped_traj) == 0:
+        return "[No user/agent messages found in trajectory]"
     return "\n".join([f"{item['role'].capitalize()}: {item['content']}" for item in stripped_traj])
 
 def display_actions(actions: List[Action]) -> str:
@@ -213,12 +215,15 @@ Author fault distribution:
   - Agent: {sum(1 for r in fault_assignment_results if r.author == FaultAuthor.AGENT)} ({round(sum(1 for r in fault_assignment_results if r.author == FaultAuthor.AGENT) / len(fault_assignment_results) * 100, 2)}%)
   - Environment (otherwise case): {sum(1 for r in fault_assignment_results if r.author == FaultAuthor.ENVIRONMENT)} ({round(sum(1 for r in fault_assignment_results if r.author == FaultAuthor.ENVIRONMENT) / len(fault_assignment_results) * 100, 2)}%)
 
-Fault type distribution (only failures marked as being caused by the agent):
-  - Called wrong tool: {sum(1 for r in fault_type_results if r.fault_type == FaultType.CALLED_WRONG_TOOL)} ({round(sum(1 for r in fault_type_results if r.fault_type == FaultType.CALLED_WRONG_TOOL) / len(fault_type_results) * 100, 2)}%)
+Fault type distribution (only failures marked as being caused by the agent):""")
+    if len(fault_type_results) > 0:
+        print(f"""  - Called wrong tool: {sum(1 for r in fault_type_results if r.fault_type == FaultType.CALLED_WRONG_TOOL)} ({round(sum(1 for r in fault_type_results if r.fault_type == FaultType.CALLED_WRONG_TOOL) / len(fault_type_results) * 100, 2)}%)
   - Used wrong tool argument: {sum(1 for r in fault_type_results if r.fault_type == FaultType.USED_WRONG_TOOL_ARGUMENT)} ({round(sum(1 for r in fault_type_results if r.fault_type == FaultType.USED_WRONG_TOOL_ARGUMENT) / len(fault_type_results) * 100, 2)}%)
   - Goal partially completed: {sum(1 for r in fault_type_results if r.fault_type == FaultType.GOAL_PARTIALLY_COMPLETED)} ({round(sum(1 for r in fault_type_results if r.fault_type == FaultType.GOAL_PARTIALLY_COMPLETED) / len(fault_type_results) * 100, 2)}%)
-  - Other: {sum(1 for r in fault_type_results if r.fault_type == FaultType.OTHER)} ({round(sum(1 for r in fault_type_results if r.fault_type == FaultType.OTHER) / len(fault_type_results) * 100, 2)}%)
-""")
+  - Other: {sum(1 for r in fault_type_results if r.fault_type == FaultType.OTHER)} ({round(sum(1 for r in fault_type_results if r.fault_type == FaultType.OTHER) / len(fault_type_results) * 100, 2)}%)""")
+    else:
+        print("  No failures were attributed to the agent, so no fault type analysis was performed.")
+    print("")
     with open(args.output_path, "w") as f:
         json.dump({
             "fault_assignment_analysis": [r.model_dump() for r in fault_assignment_results],
