@@ -2,8 +2,8 @@
 
 import json
 import random
-from litellm import completion
 from typing import List, Optional, Dict, Any
+from tau_bench.completion_wrapper import completion
 
 from tau_bench.agents.base import Agent
 from tau_bench.envs.base import Env

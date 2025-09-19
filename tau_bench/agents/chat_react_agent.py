@@ -1,7 +1,7 @@
 # Copyright Sierra
 
 import json
-from litellm import completion
+from tau_bench.completion_wrapper import completion
 
 from tau_bench.agents.base import Agent
 from tau_bench.envs.base import Env
