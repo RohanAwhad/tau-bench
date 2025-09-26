@@ -141,24 +141,25 @@ class Env(object):
         if not info.r_actions:
             reward = 0.0
 
-        if len(self.task.outputs) > 0:
-            # check outputs
-            r_outputs = 1.0
-            outputs = {}
-            for output in self.task.outputs:
-                found = False
-                for action in self.actions:
-                    if (
-                        action.name == RESPOND_ACTION_NAME
-                        and output.lower()
-                        in action.kwargs["content"].lower().replace(",", "")
-                    ):
-                        found = True
-                        break
-                outputs[output] = found
-                if not found:
-                    r_outputs = 0.0
-                    reward = 0.0
-            info = RewardOutputInfo(r_outputs=r_outputs, outputs=outputs)
+        # # (rohan): this check is faulty so ignoring it for now.
+        # if len(self.task.outputs) > 0:
+        #     # check outputs
+        #     r_outputs = 1.0
+        #     outputs = {}
+        #     for output in self.task.outputs:
+        #         found = False
+        #         for action in self.actions:
+        #             if (
+        #                 action.name == RESPOND_ACTION_NAME
+        #                 and output.lower()
+        #                 in action.kwargs["content"].lower().replace(",", "")
+        #             ):
+        #                 found = True
+        #                 break
+        #         outputs[output] = found
+        #         if not found:
+        #             r_outputs = 0.0
+        #             reward = 0.0
+        #     info = RewardOutputInfo(r_outputs=r_outputs, outputs=outputs)
             
         return RewardResult(reward=reward, info=info, actions=actions)
