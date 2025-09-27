@@ -14,14 +14,14 @@ REFINER_MODEL_TENSOR_PARALLEL_SIZE=2
 REFINER_MODEL_PORT=30312
 
 
-nohup CUDA_VISIBLE_DEVICES=0,1 vllm serve \
+CUDA_VISIBLE_DEVICES=0,1 nohup vllm serve \
   $USER_MODEL \
   --served-model-name $USER_MODEL_NAME \
   --tensor-parallel-size $USER_MODEL_TENSOR_PARALLEL_SIZE \
   --host 0.0.0.0 \
   --port $USER_MODEL_PORT 2>&1 | tee user_model.log &
 
-nohup CUDA_VISIBLE_DEVICES=2,3 vllm serve \
+CUDA_VISIBLE_DEVICES=2,3 nohup vllm serve \
   $PRIMARY_MODEL \
   --served-model-name $PRIMARY_MODEL_NAME \
   --tensor-parallel-size $PRIMARY_MODEL_TENSOR_PARALLEL_SIZE \
@@ -30,7 +30,7 @@ nohup CUDA_VISIBLE_DEVICES=2,3 vllm serve \
   --host 0.0.0.0 \
   --port $PRIMARY_MODEL_PORT 2>&1 | tee primary_model.log &
 
-nohup CUDA_VISIBLE_DEVICES=4,5 vllm serve \
+CUDA_VISIBLE_DEVICES=4,5 nohup vllm serve \
   $REFINER_MODEL \
   --served-model-name $REFINER_MODEL_NAME \
   --tensor-parallel-size $REFINER_MODEL_TENSOR_PARALLEL_SIZE \
