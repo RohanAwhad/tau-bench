@@ -53,7 +53,7 @@ def plot_difficulty(difficulty: list[int], results_dir: str):
 
     Saves the plot to a file called difficulty_plot.png in results_dir
     """
-    x_ticks = [f'{i}/{len(difficulty)}' for i in range(len(difficulty))]
+    x_ticks = [f'{i}/{len(difficulty)-1}' for i in range(len(difficulty))]
     plt.plot(x_ticks, difficulty, marker='o')
     # add value per point on the plot
     for i in range(len(difficulty)): plt.text(x_ticks[i], difficulty[i], f'{difficulty[i]}', ha='center', va='bottom')
