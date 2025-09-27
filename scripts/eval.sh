@@ -1,22 +1,40 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Check if argument is provided
+if [ $# -ne 1 ]; then
+    echo "Usage: $0 <debug|prod>"
+    exit 1
+fi
+
+# Set END_INDEX based on argument
+if [ "$1" = "debug" ]; then
+    END_INDEX=1
+elif [ "$1" = "prod" ]; then
+    END_INDEX=-1
+else
+    echo "Invalid argument. Use 'debug' or 'prod'"
+    exit 1
+fi
+
+
 # Record start time
 START_TIME=$(date +%s)
 
 # user model
 export OPENAI_BASE_URL='http://10.241.128.20:30310/v1'
 export OPENAI_API_KEY='empty'
-USER_MODEL="qwen25-32b"
+USER_MODEL="openai/openai/gpt-oss-120b"
 
 # assistant model
-export VLLM_BASE_URL='http://localhost:8080/v1'
-ASSISTANT_MODEL="surgical_adapter_v27_qwen3_8b_step_0_with_explicit_think"
+export VLLM_BASE_URL='http://10.241.128.20:30311/v1'
+ASSISTANT_MODEL="qwen25-32b"
 
 # extra params
 MAX_CONCURRENCY=24
 TEMPERATURE=0.72
-LOG_DIR="results/$ASSISTANT_MODEL"
+LOG_DIR="results/gptoss-120b-qwen25-32b"
+
 
 for i in {1..5}; do
   echo ">>> Run $i/5"
@@ -32,7 +50,8 @@ for i in {1..5}; do
     --temperature $TEMPERATURE \
     --num-trials 1 \
     --log-dir $LOG_DIR \
-    --task-split test
+    --task-split test \
+    --end-index $END_INDEX
 done
 
 python scripts/get_metrics.py $LOG_DIR
