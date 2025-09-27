@@ -22,9 +22,9 @@ fi
 START_TIME=$(date +%s)
 
 # user model
-export OPENAI_BASE_URL='http://10.241.128.20:30310/v1'
+export OPENAI_BASE_URL='http://10.241.128.22:30310/v1'
 export OPENAI_API_KEY='empty'
-USER_MODEL="openai/openai/gpt-oss-120b"
+USER_MODEL="llama33-70b"
 
 # assistant model
 export VLLM_BASE_URL='http://10.241.128.20:30311/v1'
@@ -32,9 +32,11 @@ ASSISTANT_MODEL="qwen25-32b"
 
 # extra params
 MAX_CONCURRENCY=24
-TEMPERATURE=0.72
-LOG_DIR="results/gptoss-120b-qwen25-32b"
+LOG_DIR="results/$USER_MODEL-$ASSISTANT_MODEL"
 
+
+# constant
+TEMPERATURE=0.72
 
 for i in {1..5}; do
   echo ">>> Run $i/5"
