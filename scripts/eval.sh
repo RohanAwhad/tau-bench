@@ -22,17 +22,17 @@ fi
 START_TIME=$(date +%s)
 
 # user model
-export OPENAI_BASE_URL='http://10.241.128.22:30310/v1'
-export OPENAI_API_KEY='empty'
-USER_MODEL="llama33-70b"
+export OPENAI_BASE_URL='https://api.openai.com/v1'
+export OPENAI_API_KEY="$ROPENAI_API_KEY"
+USER_MODEL="openai/gpt-4.1-2025-04-14"
 
 # assistant model
-export VLLM_BASE_URL='http://10.241.128.20:30311/v1'
-ASSISTANT_MODEL="qwen25-32b"
+export VLLM_BASE_URL='http://localhost:8080/v1'
+ASSISTANT_MODEL="surgical_adapter_v27_qwen3_8b_step_0"
 
 # extra params
 MAX_CONCURRENCY=24
-LOG_DIR="results/$USER_MODEL-$ASSISTANT_MODEL"
+LOG_DIR="results/gpt_4.1-$ASSISTANT_MODEL"
 
 
 # constant
