@@ -33,6 +33,8 @@ CUDA_VISIBLE_DEVICES=$PRIMARY_MODEL_GPU_IDS nohup vllm serve \
   $PRIMARY_MODEL \
   --served-model-name $PRIMARY_MODEL_NAME \
   --tensor-parallel-size $PRIMARY_MODEL_TENSOR_PARALLEL_SIZE \
+  --enable-auto-tool-choice \
+  --tool-call-parser hermes \
   --host 0.0.0.0 \
   --port $PRIMARY_MODEL_PORT 2>&1 | tee primary_model.log &
 PRIMARY_MODEL_PID=$!
@@ -42,8 +44,6 @@ CUDA_VISIBLE_DEVICES=$REFINER_MODEL_GPU_IDS nohup vllm serve \
   $REFINER_MODEL \
   --served-model-name $REFINER_MODEL_NAME \
   --tensor-parallel-size $REFINER_MODEL_TENSOR_PARALLEL_SIZE \
-  --enable-auto-tool-choice \
-  --tool-call-parser hermes \
   --host 0.0.0.0 \
   --port $REFINER_MODEL_PORT 2>&1 | tee refiner_model.log &
 REFINER_PID=$!
