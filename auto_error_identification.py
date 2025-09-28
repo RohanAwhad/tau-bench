@@ -1,5 +1,6 @@
 # Copyright Sierra
 
+import os
 import json
 import argparse
 from enum import Enum
@@ -224,6 +225,7 @@ Fault type distribution (only failures marked as being caused by the agent):""")
     else:
         print("  No failures were attributed to the agent, so no fault type analysis was performed.")
     print("")
+    os.makedirs(os.path.dirname(args.output_path), exist_ok=True)
     with open(args.output_path, "w") as f:
         json.dump({
             "fault_assignment_analysis": [r.model_dump() for r in fault_assignment_results],
