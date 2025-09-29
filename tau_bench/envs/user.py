@@ -6,6 +6,10 @@ from litellm import completion
 
 from typing import Optional, List, Dict, Any, Union
 
+import os
+
+USER_MODEL_TEMPERATURE = float(os.getenv("USER_MODEL_TEMPERATURE", 1.0))
+
 
 class BaseUserSimulationEnv(abc.ABC):
     metadata = {}
@@ -45,7 +49,7 @@ class LLMUserSimulationEnv(BaseUserSimulationEnv):
 
     def generate_next_message(self, messages: List[Dict[str, Any]]) -> str:
         res = completion(
-            model=self.model, custom_llm_provider=self.provider, messages=messages
+            model=self.model, custom_llm_provider=self.provider, messages=messages, temperature=USER_MODEL_TEMPERATURE
         )
         message = res.choices[0].message
         self.messages.append(message.model_dump())

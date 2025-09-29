@@ -9,9 +9,11 @@ fi
 
 # Set END_INDEX based on argument
 if [ "$1" = "debug" ]; then
+    SUFFIX="debug"
     END_INDEX=1
 elif [ "$1" = "prod" ]; then
     END_INDEX=-1
+    SUFFIX="prod"
 else
     echo "Invalid argument. Use 'debug' or 'prod'"
     exit 1
@@ -24,19 +26,20 @@ START_TIME=$(date +%s)
 # user model
 export OPENAI_BASE_URL='https://api.openai.com/v1'
 export OPENAI_API_KEY="$ROPENAI_API_KEY"
+export USER_MODEL_TEMPERATURE=0.7
 USER_MODEL="openai/gpt-4.1-2025-04-14"
 
 # assistant model
-export VLLM_BASE_URL='http://localhost:8080/v1'
-ASSISTANT_MODEL="surgical_adapter_v27_qwen3_8b_step_0"
+export VLLM_BASE_URL='http://10.241.128.17:30311/v1'
+ASSISTANT_MODEL="qwen25-32b"
 
 # extra params
-MAX_CONCURRENCY=24
-LOG_DIR="results/gpt_4.1-$ASSISTANT_MODEL"
+MAX_CONCURRENCY=55
+LOG_DIR="results/gpt_4.1-$ASSISTANT_MODEL-$SUFFIX"
 
 
 # constant
-TEMPERATURE=0.72
+TEMPERATURE=0.7
 
 for i in {1..5}; do
   echo ">>> Run $i/5"
