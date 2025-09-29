@@ -26,7 +26,7 @@ START_TIME=$(date +%s)
 # user model
 export OPENAI_BASE_URL='https://api.openai.com/v1'
 export OPENAI_API_KEY="$ROPENAI_API_KEY"
-export USER_MODEL_TEMPERATURE=0.7
+export USER_MODEL_TEMPERATURE=1.0
 USER_MODEL="openai/gpt-4.1-2025-04-14"
 
 # assistant model
