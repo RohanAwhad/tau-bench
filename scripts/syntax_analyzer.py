@@ -3,6 +3,14 @@ import json
 import os
 from pathlib import Path
 
+# Check if debug mode is enabled
+DEBUG = os.environ.get('DEBUG', '0') == '1'
+
+def debug_print(*args, **kwargs):
+    """Print debug messages only if DEBUG environment variable is set to 1."""
+    if DEBUG:
+        print("[DEBUG]", *args, **kwargs)
+
 def validate_model_output(output, primary_response_content=None):
     # Pattern for content within SEARCH/REPLACE blocks that explicitly excludes block delimiters
     # (?!...) is a negative lookahead assertion.
@@ -70,7 +78,17 @@ def validate_model_output(output, primary_response_content=None):
             # Check if search content exists in primary response
             if primary_response_content and search_content:
                 if search_content not in primary_response_content:
+                    debug_print("\n" + "=" * 80)
+                    debug_print("ERROR: search_content_not_found")
+                    debug_print("=" * 80)
+                    debug_print("SEARCH CONTENT:")
+                    debug_print(repr(search_content))
+                    debug_print("-" * 80)
+                    debug_print("PRIMARY RESPONSE CONTENT:")
+                    debug_print(repr(primary_response_content))
+                    debug_print("=" * 80 + "\n")
                     return False, {"type": "search_content_not_found", "message": f"Search content not found in primary response: '{search_content[:50]}{'...' if len(search_content) > 50 else ''}'"}
+
     else:
         return False, {"type": "neither_lgtm_nor_sr_blocks", "message": "Final response content is neither 'lgtm' nor search/replace blocks."}
 
@@ -297,6 +315,10 @@ def analyze_all_trajectories(trajectories_dir):
 
 if __name__ == "__main__":
     # Analyze all trajectory files
-    trajectories_directory = "/Users/meyceoz/Downloads/trajectories"
+    import sys
+    if len(sys.argv) != 2:
+        print("Usage: python syntax_analyzer.py <trajectories_directory>")
+        sys.exit(1)
+    trajectories_directory = sys.argv[1]
     results = analyze_all_trajectories(trajectories_directory)
 
