@@ -11,9 +11,11 @@ fi
 if [ "$1" = "debug" ]; then
     SUFFIX="debug"
     END_INDEX=1
+    NUM_TRIALS=2
 elif [ "$1" = "prod" ]; then
     END_INDEX=-1
     SUFFIX="prod"
+    NUM_TRIALS=5
 else
     echo "Invalid argument. Use 'debug' or 'prod'"
     exit 1
@@ -30,19 +32,19 @@ export USER_MODEL_TEMPERATURE=1.0
 USER_MODEL="openai/gpt-4.1-2025-04-14"
 
 # assistant model
-export VLLM_BASE_URL='http://10.241.128.17:30311/v1'
-ASSISTANT_MODEL="qwen25-32b"
+export VLLM_BASE_URL='http://localhost:8081/v1'
+ASSISTANT_MODEL="surgical_adapter_v29_qwen3_8b_step_0_strict_format_check"
 
 # extra params
-MAX_CONCURRENCY=55
+MAX_CONCURRENCY=24
 LOG_DIR="results/gpt_4.1-$ASSISTANT_MODEL-$SUFFIX"
 
 
 # constant
-TEMPERATURE=0.7
+TEMPERATURE=0.72
 
-for i in {1..5}; do
-  echo ">>> Run $i/5"
+for i in $(seq 1 $NUM_TRIALS); do
+  echo ">>> Run $i/$NUM_TRIALS"
   python run.py \
     --agent-strategy tool-calling \
     --env retail \
