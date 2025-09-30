@@ -11,6 +11,36 @@ def debug_print(*args, **kwargs):
     if DEBUG:
         print("[DEBUG]", *args, **kwargs)
 
+def format_primary_response(message):
+    """Format primary model response preserving both reasoning and tool calls
+    This matches the format used by format_ADAPTER_MODEL_response in the actual API"""
+    parts = ['```']
+    
+    # Add reasoning/content if present
+    if isinstance(message, dict):
+        content = message.get('content', '')
+        tool_calls = message.get('tool_calls', [])
+    else:
+        content = getattr(message, 'content', None) or ""
+        tool_calls = getattr(message, 'tool_calls', []) or []
+    
+    if content:
+        parts.append(content.strip())
+    
+    # Add tool calls if present
+    if tool_calls:
+        for tc in tool_calls:
+            if isinstance(tc, dict):
+                tool_name = tc.get('function', {}).get('name', 'unknown')
+                tool_args = tc.get('function', {}).get('arguments', '{}')
+            else:
+                tool_name = tc.function.name
+                tool_args = tc.function.arguments
+            parts.append(f'<tool_call>\n{{"name": "{tool_name}", "arguments": {tool_args}}}\n</tool_call>')
+
+    parts.append('```')
+    return "\n".join(parts) if len(parts) > 2 else None  # Return None if only has backticks
+
 def validate_model_output(output, primary_response_content=None):
     # Pattern for content within SEARCH/REPLACE blocks that explicitly excludes block delimiters
     # (?!...) is a negative lookahead assertion.
@@ -158,9 +188,10 @@ def analyze_trajectory_file(file_path):
                                 total_refiner_outputs += 1
                                 
                                 # Get primary response content for validation
+                                # Format it the same way as the actual API does (with content + tool_calls)
                                 primary_response_content = None
-                                if 'primary_response' in metadata and 'content' in metadata['primary_response']:
-                                    primary_response_content = metadata['primary_response']['content']
+                                if 'primary_response' in metadata:
+                                    primary_response_content = format_primary_response(metadata['primary_response'])
                                 
                                 # Validate the refiner output
                                 is_valid, extracted_data = validate_model_output(refiner_output, primary_response_content)
