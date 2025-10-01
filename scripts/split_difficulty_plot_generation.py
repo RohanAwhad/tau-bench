@@ -57,7 +57,7 @@ def plot_difficulty(difficulty: list[int], results_dir: str):
     plt.plot(x_ticks, difficulty, marker='o')
     # add value per point on the plot
     for i in range(len(difficulty)): plt.text(x_ticks[i], difficulty[i], f'{difficulty[i]}', ha='center', va='bottom')
-    plt.xlabel("Difficulty/n_runs")
+    plt.xlabel("Score/Total Score")
     plt.ylabel("Number of tasks")
     plt.title("Difficulty Plot")
     plt.savefig(os.path.join(results_dir, "difficulty_plot.png"))
@@ -72,18 +72,31 @@ def plot_multiple_difficulties(difficulties_by_dir: dict[str, list[int]], output
         difficulties_by_dir: dict mapping directory names to their difficulty distributions
         output_path: path where to save the plot
     """
-    plt.figure(figsize=(12, 6))
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    # Determine the max length for consistent x-axis
+    max_len = max(len(difficulty) for difficulty in difficulties_by_dir.values())
+    n_runs = max_len - 1
 
     for dir_name, difficulty in difficulties_by_dir.items():
-        x_ticks = list(range(len(difficulty)))
-        plt.plot(x_ticks, difficulty, marker='o', label=os.path.basename(dir_name))
+        x_positions = list(range(len(difficulty)))
+        label_name = os.path.basename(dir_name.rstrip('/'))
+        print(f"Plotting {label_name} with {len(difficulty)} points")
+        ax.plot(x_positions, difficulty, marker='o', label=label_name)
 
-    plt.xlabel("Difficulty (number of successful runs)")
-    plt.ylabel("Number of tasks")
-    plt.title("Difficulty Distribution Comparison")
-    plt.legend()
-    plt.grid(True, alpha=0.3)
-    plt.savefig(output_path)
+    # Format x-axis labels as "0/n", "1/n", etc.
+    x_labels = [f'{i}/{n_runs}' for i in range(max_len)]
+    ax.set_xticks(range(max_len))
+    ax.set_xticklabels(x_labels)
+
+    ax.set_xlabel("Difficulty/n_runs")
+    ax.set_ylabel("Number of tasks")
+    ax.set_title("Difficulty Distribution Comparison")
+    ax.legend(loc='best', frameon=True, shadow=True)
+    ax.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=100, bbox_inches='tight')
+    plt.close()
     print(f"Saved plot to {output_path}")
 
 
