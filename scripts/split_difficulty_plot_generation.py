@@ -64,23 +64,92 @@ def plot_difficulty(difficulty: list[int], results_dir: str):
     print(f"Saved plot to {os.path.join(results_dir, 'difficulty_plot.png')}")
 
 
-def main():
-    if len(sys.argv) != 2:
-        print("Usage: python split_difficulty_plot_generation.py <results_dir>")
-        sys.exit(1)
+def plot_multiple_difficulties(difficulties_by_dir: dict[str, list[int]], output_path: str):
+    """
+    Plot multiple difficulty distributions in a single figure.
 
-    results_dir = sys.argv[1]
-    # check if file is json or a directory
+    Args:
+        difficulties_by_dir: dict mapping directory names to their difficulty distributions
+        output_path: path where to save the plot
+    """
+    plt.figure(figsize=(12, 6))
+
+    for dir_name, difficulty in difficulties_by_dir.items():
+        x_ticks = list(range(len(difficulty)))
+        plt.plot(x_ticks, difficulty, marker='o', label=os.path.basename(dir_name))
+
+    plt.xlabel("Difficulty (number of successful runs)")
+    plt.ylabel("Number of tasks")
+    plt.title("Difficulty Distribution Comparison")
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.savefig(output_path)
+    print(f"Saved plot to {output_path}")
+
+
+def process_directory(results_dir: str) -> tuple[list[int], int]:
+    """
+    Process a single directory and return its difficulty distribution and number of runs.
+
+    Returns:
+        tuple of (difficulty distribution, number of runs)
+    """
     files = sorted(os.listdir(results_dir))
     runs = []
     for file in files:
         if file.endswith('.json'):
             data = load_data(os.path.join(results_dir, file))
             runs.append(data)
+
+    if not runs:
+        print(f"Warning: No JSON files found in {results_dir}")
+        return [], 0
+
     task_wise_difficulty = calculate_difficulty(runs)
-    # reduce the task_wise_difficulty to a list of length n_runs
     difficulty = reduce_task_wise_difficulty(task_wise_difficulty, len(runs))
-    plot_difficulty(difficulty, results_dir)
+    return difficulty, len(runs)
+
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage:")
+        print("  Single directory: python split_difficulty_plot_generation.py <results_dir>")
+        print("  Multiple directories: python split_difficulty_plot_generation.py <dir1> <dir2> ... <dirN> <output_path>")
+        sys.exit(1)
+
+    # Single directory mode
+    if len(sys.argv) == 2:
+        results_dir = sys.argv[1]
+        difficulty, n_runs = process_directory(results_dir)
+        if difficulty:
+            plot_difficulty(difficulty, results_dir)
+
+    # Multiple directory mode
+    else:
+        directories = sys.argv[1:-1]
+        output_path = sys.argv[-1]
+
+        # Validate that output_path looks like a file path
+        if not output_path.endswith('.png'):
+            print("Error: Last argument should be the output path (must end with .png)")
+            print("Usage: python split_difficulty_plot_generation.py <dir1> <dir2> ... <dirN> <output_path>")
+            sys.exit(1)
+
+        difficulties_by_dir = {}
+        for directory in directories:
+            if not os.path.isdir(directory):
+                print(f"Error: {directory} is not a valid directory")
+                sys.exit(1)
+
+            difficulty, n_runs = process_directory(directory)
+            if difficulty:
+                difficulties_by_dir[directory] = difficulty
+
+        if not difficulties_by_dir:
+            print("Error: No valid data found in any directory")
+            sys.exit(1)
+
+        plot_multiple_difficulties(difficulties_by_dir, output_path)
 
 
 if __name__ == "__main__":
