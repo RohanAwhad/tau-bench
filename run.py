@@ -70,7 +70,7 @@ def parse_args() -> RunConfig:
     parser.add_argument("--user-strategy", type=str, default="llm", choices=[item.value for item in UserStrategy])
     parser.add_argument("--few-shot-displays-path", type=str, help="Path to a jsonlines file containing few shot displays")
     parser.add_argument("--best-of-n", type=int, default=1, help="Number of times to run each task, return 1 if at least one succeeds")
-    parser.add_argument("--early-stoppping", action="store_true", help="Early stopping")
+    parser.add_argument("--early-stopping", action="store_true", help="Early stopping")
     args = parser.parse_args()
     print(args)
     return RunConfig(
@@ -93,7 +93,7 @@ def parse_args() -> RunConfig:
         user_strategy=args.user_strategy,
         few_shot_displays_path=args.few_shot_displays_path,
         best_of_n=args.best_of_n,
-        early_stoppping=args.early_stoppping,
+        early_stopping=args.early_stopping,
     )
 
 
