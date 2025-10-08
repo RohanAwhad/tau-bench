@@ -89,3 +89,4 @@ class RunConfig(BaseModel):
     user_strategy: str = "llm"
     few_shot_displays_path: Optional[str] = None
     best_of_n: int = 1
+    early_stopping: bool = False

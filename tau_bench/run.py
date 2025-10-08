@@ -105,6 +105,8 @@ def run(config: RunConfig) -> List[EnvRunResult]:
 
                 all_results.append(result)
                 print(f"    ✅" if result.reward == 1 else "❌", f"Attempt {attempt + 1} reward: {result.reward}")
+                if result.reward == 1 and config.early_stopping:
+                    print("  Stopping early")
 
             # Set the final reward: 1 if any attempt succeeded, 0 otherwise
             final_reward = 1.0 if best_reward >= 1.0 else 0.0
