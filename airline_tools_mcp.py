@@ -1,24 +1,16 @@
 #!/usr/bin/env python3
 """
-MCP Server for Airline Tools using SSE (Server-Sent Events)
+MCP Server for Airline Tools using FastMCP with SSE (Server-Sent Events)
 
 This server exposes all airline tools from tau-bench as MCP tools.
+Run with: python airline_tools_mcp.py
+Access at: http://localhost:8000/sse
 """
 
-import asyncio
-import json
 import logging
-from typing import Any
+from typing import Any, Dict, List
 
-from mcp.server.models import InitializationOptions
-from mcp.server import NotificationOptions, Server
-from mcp.server.stdio import stdio_server
-from mcp.types import (
-    Tool,
-    TextContent,
-    ImageContent,
-    EmbeddedResource,
-)
+from fastmcp import FastMCP
 
 from tau_bench.envs.airline.data import load_data
 from tau_bench.envs.airline.tools import (
@@ -42,114 +34,139 @@ from tau_bench.envs.airline.tools import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("airline-tools-mcp")
 
-# Create the MCP server
-server = Server("airline-tools")
+# Create FastMCP server
+mcp = FastMCP("Airline Tools")
 
-# Global data storage
-airline_data: dict[str, Any] = {}
-
-# Map of tool names to tool classes
-TOOL_MAP = {
-    "book_reservation": BookReservation,
-    "calculate": Calculate,
-    "cancel_reservation": CancelReservation,
-    "get_reservation_details": GetReservationDetails,
-    "get_user_details": GetUserDetails,
-    "list_all_airports": ListAllAirports,
-    "search_direct_flight": SearchDirectFlight,
-    "search_onestop_flight": SearchOnestopFlight,
-    "send_certificate": SendCertificate,
-    "think": Think,
-    "transfer_to_human_agents": TransferToHumanAgents,
-    "update_reservation_baggages": UpdateReservationBaggages,
-    "update_reservation_flights": UpdateReservationFlights,
-    "update_reservation_passengers": UpdateReservationPassengers,
-}
+# Load airline data globally
+logger.info("Loading airline data...")
+airline_data = load_data()
+logger.info(f"Loaded {len(airline_data.get('flights', {}))} flights, "
+            f"{len(airline_data.get('reservations', {}))} reservations, "
+            f"{len(airline_data.get('users', {}))} users")
 
 
-def convert_tool_info_to_mcp(tool_info: dict[str, Any]) -> Tool:
-    """Convert tau-bench tool info format to MCP Tool format."""
-    func_info = tool_info["function"]
-    return Tool(
-        name=func_info["name"],
-        description=func_info["description"],
-        inputSchema=func_info["parameters"],
+@mcp.tool()
+def book_reservation(
+    user_id: str,
+    origin: str,
+    destination: str,
+    flight_type: str,
+    cabin: str,
+    flights: List[Dict[str, Any]],
+    passengers: List[Dict[str, Any]],
+    payment_methods: List[Dict[str, Any]],
+    total_baggages: int,
+    nonfree_baggages: int,
+    insurance: str,
+) -> str:
+    """Book a reservation."""
+    return BookReservation.invoke(
+        airline_data,
+        user_id,
+        origin,
+        destination,
+        flight_type,
+        cabin,
+        flights,
+        passengers,
+        payment_methods,
+        total_baggages,
+        nonfree_baggages,
+        insurance,
     )
 
 
-@server.list_tools()
-async def handle_list_tools() -> list[Tool]:
-    """List all available airline tools."""
-    logger.info("Listing all airline tools")
-    tools = []
-    for tool_class in TOOL_MAP.values():
-        tool_info = tool_class.get_info()
-        mcp_tool = convert_tool_info_to_mcp(tool_info)
-        tools.append(mcp_tool)
-    return tools
+@mcp.tool()
+def calculate(operation: str) -> str:
+    """Perform a calculation."""
+    return Calculate.invoke(airline_data, operation)
 
 
-@server.call_tool()
-async def handle_call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
-    """Handle tool calls by delegating to the appropriate airline tool."""
-    logger.info(f"Calling tool: {name} with arguments: {arguments}")
-
-    if name not in TOOL_MAP:
-        raise ValueError(f"Unknown tool: {name}")
-
-    tool_class = TOOL_MAP[name]
-
-    try:
-        # Call the tool's invoke method with data and arguments
-        result = tool_class.invoke(airline_data, **arguments)
-
-        # Return the result as TextContent
-        return [TextContent(type="text", text=str(result))]
-    except Exception as e:
-        logger.error(f"Error calling tool {name}: {e}", exc_info=True)
-        error_msg = f"Error: {str(e)}"
-        return [TextContent(type="text", text=error_msg)]
+@mcp.tool()
+def cancel_reservation(reservation_id: str) -> str:
+    """Cancel a reservation."""
+    return CancelReservation.invoke(airline_data, reservation_id)
 
 
-@server.list_resources()
-async def handle_list_resources() -> list[Any]:
-    """List available resources (data snapshots)."""
-    return []
+@mcp.tool()
+def get_reservation_details(reservation_id: str) -> str:
+    """Get the details of a reservation."""
+    return GetReservationDetails.invoke(airline_data, reservation_id)
 
 
-@server.list_prompts()
-async def handle_list_prompts() -> list[Any]:
-    """List available prompts."""
-    return []
+@mcp.tool()
+def get_user_details(user_id: str) -> str:
+    """Get the details of a user, including their reservations."""
+    return GetUserDetails.invoke(airline_data, user_id)
 
 
-async def main():
-    """Main entry point for the MCP server."""
-    global airline_data
+@mcp.tool()
+def list_all_airports() -> str:
+    """List all airports."""
+    return ListAllAirports.invoke(airline_data)
 
-    # Load airline data
-    logger.info("Loading airline data...")
-    airline_data = load_data()
-    logger.info(f"Loaded {len(airline_data.get('flights', {}))} flights, "
-                f"{len(airline_data.get('reservations', {}))} reservations, "
-                f"{len(airline_data.get('users', {}))} users")
 
-    # Run the server using stdio transport
-    logger.info("Starting Airline Tools MCP Server (SSE)")
-    async with stdio_server() as (read_stream, write_stream):
-        await server.run(
-            read_stream,
-            write_stream,
-            InitializationOptions(
-                server_name="airline-tools",
-                server_version="1.0.0",
-                capabilities=server.get_capabilities(
-                    notification_options=NotificationOptions(),
-                    experimental_capabilities={},
-                ),
-            ),
-        )
+@mcp.tool()
+def search_direct_flight(origin: str, destination: str, date: str) -> str:
+    """Search direct flights between two cities on a specific date."""
+    return SearchDirectFlight.invoke(airline_data, origin, destination, date)
+
+
+@mcp.tool()
+def search_onestop_flight(origin: str, destination: str, date: str) -> str:
+    """Search one-stop flights between two cities on a specific date."""
+    return SearchOnestopFlight.invoke(airline_data, origin, destination, date)
+
+
+@mcp.tool()
+def send_certificate(user_id: str, amount: int) -> str:
+    """Send a certificate to a user."""
+    return SendCertificate.invoke(airline_data, user_id, amount)
+
+
+@mcp.tool()
+def think(thought: str) -> str:
+    """Think about something (internal reasoning)."""
+    return Think.invoke(airline_data, thought)
+
+
+@mcp.tool()
+def transfer_to_human_agents(summary: str) -> str:
+    """Transfer to human agents."""
+    return TransferToHumanAgents.invoke(airline_data, summary)
+
+
+@mcp.tool()
+def update_reservation_baggages(
+    reservation_id: str,
+    total_baggages: int,
+    nonfree_baggages: int,
+) -> str:
+    """Update the baggage information of a reservation."""
+    return UpdateReservationBaggages.invoke(
+        airline_data, reservation_id, total_baggages, nonfree_baggages
+    )
+
+
+@mcp.tool()
+def update_reservation_flights(
+    reservation_id: str,
+    flights: List[Dict[str, Any]],
+) -> str:
+    """Update the flights of a reservation."""
+    return UpdateReservationFlights.invoke(airline_data, reservation_id, flights)
+
+
+@mcp.tool()
+def update_reservation_passengers(
+    reservation_id: str,
+    passengers: List[Dict[str, Any]],
+) -> str:
+    """Update the passengers of a reservation."""
+    return UpdateReservationPassengers.invoke(airline_data, reservation_id, passengers)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    logger.info("Starting Airline Tools MCP Server with SSE on http://localhost:8000/sse")
+    # Run with HTTP/SSE transport
+    mcp.run(transport="sse")
