@@ -9,6 +9,7 @@ Reload endpoint: POST http://localhost:8000/reload
 """
 
 import logging
+import json
 from typing import Any, Dict, List
 
 from fastmcp import FastMCP
@@ -315,6 +316,72 @@ def update_reservation_passengers(
 update_reservation_passengers.__doc__ = UPDATE_RESERVATION_PASSENGERS_DESCRIPTION
 
 
+def run_hash_smoke_test() -> None:
+    """CLI helper to verify reload and hash behavior."""
+    logger.info("Running database reload/hash smoke test")
+
+    reload_database()
+    baseline_hash = get_database_hash()
+    logger.info("Baseline database hash: %s", baseline_hash)
+
+    reload_database()
+    post_reload_hash = get_database_hash()
+    if post_reload_hash != baseline_hash:
+        raise RuntimeError(
+            f"Reload hash mismatch: {post_reload_hash} (expected {baseline_hash})"
+        )
+    logger.info("Reload hash matches baseline: %s", post_reload_hash)
+
+    certificate_result = SendCertificate.invoke(airline_data, "mia_li_3668", 42)
+    logger.info("send_certificate result: %s", certificate_result.strip())
+    if not certificate_result.lower().startswith("certificate"):
+        raise RuntimeError(f"send_certificate failed: {certificate_result}")
+
+    flight_entry = airline_data["flights"]["HAT001"]["dates"]["2024-05-16"]
+    if flight_entry["status"] != "available":
+        raise RuntimeError("Expected HAT001 on 2024-05-16 to be available for booking")
+    payment_amount = flight_entry["prices"]["economy"]
+
+    booking_result = BookReservation.invoke(
+        airline_data,
+        user_id="mia_li_3668",
+        origin="PHL",
+        destination="LGA",
+        flight_type="one_way",
+        cabin="economy",
+        flights=[{"flight_number": "HAT001", "date": "2024-05-16"}],
+        passengers=[
+            {"first_name": "Mia", "last_name": "Li", "dob": "1990-04-05"},
+        ],
+        payment_methods=[{"payment_id": "credit_card_1955700", "amount": payment_amount}],
+        total_baggages=0,
+        nonfree_baggages=0,
+        insurance="no",
+    )
+    try:
+        booking_payload = json.loads(booking_result)
+    except json.JSONDecodeError as exc:  # pragma: no cover - sanity guard
+        raise RuntimeError(f"Book reservation failed: {booking_result}") from exc
+
+    new_reservation_id = booking_payload["reservation_id"]
+    logger.info("Booked reservation %s via smoke test", new_reservation_id)
+
+    mutated_hash = get_database_hash()
+    if mutated_hash == baseline_hash:
+        raise RuntimeError(
+            "Database hash unchanged after mutations; expected difference"
+        )
+    logger.info("Hash after tool mutations: %s", mutated_hash)
+
+    reload_database()
+    final_hash = get_database_hash()
+    if final_hash != baseline_hash:
+        raise RuntimeError(
+            f"Database did not reset cleanly: {final_hash} (expected {baseline_hash})"
+        )
+    logger.info("Reload restored baseline hash: %s", final_hash)
+
+
 async def run_reload_server():
     """Run the reload endpoint on a separate port."""
     reload_app = Starlette(
@@ -328,7 +395,7 @@ async def run_reload_server():
     await server.serve()
 
 
-if __name__ == "__main__":
+def start_server() -> None:
     import asyncio
     import threading
 
@@ -346,3 +413,20 @@ if __name__ == "__main__":
 
     # Run the MCP server on port 8000
     mcp.run(transport="sse", port=8000)
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Airline MCP server controls")
+    parser.add_argument(
+        "--test-reload-hash",
+        action="store_true",
+        help="Run a smoke test that exercises reload and hash operations.",
+    )
+    args = parser.parse_args()
+
+    if args.test_reload_hash:
+        run_hash_smoke_test()
+    else:
+        start_server()
