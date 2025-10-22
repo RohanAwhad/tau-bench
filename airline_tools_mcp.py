@@ -51,6 +51,64 @@ logger.info(f"Loaded {len(airline_data.get('flights', {}))} flights, "
             f"{len(airline_data.get('users', {}))} users")
 
 
+def _format_tool_description(tool_class) -> str:
+    """Create a rich tool description using the tool's get_info metadata."""
+    info = tool_class.get_info().get("function", {})
+    description = info.get("description", "").strip()
+    properties = info.get("parameters", {}).get("properties", {})
+
+    lines: List[str] = []
+    if description:
+        lines.append(description)
+
+    if properties:
+        if lines:
+            lines.append("")
+        lines.append("Parameters:")
+
+        for name, schema in properties.items():
+            param_type = schema.get("type")
+            details: List[str] = []
+            if param_type:
+                details.append(param_type)
+
+            if param_type == "array":
+                item_schema = schema.get("items", {})
+                item_type = item_schema.get("type")
+                if item_type:
+                    details.append(f"items: {item_type}")
+
+            enum_values = schema.get("enum")
+            if enum_values:
+                formatted_enum = ", ".join(str(value) for value in enum_values)
+                details.append(f"options: {formatted_enum}")
+
+            detail_suffix = f" ({', '.join(details)})" if details else ""
+            param_description = schema.get("description", "").strip()
+            if param_description:
+                lines.append(f"- {name}{detail_suffix}: {param_description}")
+            else:
+                lines.append(f"- {name}{detail_suffix}")
+
+    return "\n".join(lines)
+
+
+BOOK_RESERVATION_DESCRIPTION = _format_tool_description(BookReservation)
+CALCULATE_DESCRIPTION = _format_tool_description(Calculate)
+CANCEL_RESERVATION_DESCRIPTION = _format_tool_description(CancelReservation)
+GET_RESERVATION_DETAILS_DESCRIPTION = _format_tool_description(GetReservationDetails)
+GET_USER_DETAILS_DESCRIPTION = _format_tool_description(GetUserDetails)
+LIST_ALL_AIRPORTS_DESCRIPTION = _format_tool_description(ListAllAirports)
+SEARCH_DIRECT_FLIGHT_DESCRIPTION = _format_tool_description(SearchDirectFlight)
+SEARCH_ONESTOP_FLIGHT_DESCRIPTION = _format_tool_description(SearchOnestopFlight)
+SEND_CERTIFICATE_DESCRIPTION = _format_tool_description(SendCertificate)
+THINK_DESCRIPTION = _format_tool_description(Think)
+TRANSFER_TO_HUMAN_AGENTS_DESCRIPTION = _format_tool_description(TransferToHumanAgents)
+UPDATE_RESERVATION_BAGGAGES_DESCRIPTION = _format_tool_description(UpdateReservationBaggages)
+UPDATE_RESERVATION_FLIGHTS_DESCRIPTION = _format_tool_description(UpdateReservationFlights)
+UPDATE_RESERVATION_PASSENGERS_DESCRIPTION = _format_tool_description(UpdateReservationPassengers)
+
+
 def reload_database():
     """Reload the airline database from source files."""
     global airline_data
@@ -78,7 +136,7 @@ async def reload_endpoint(request: Request):
     })
 
 
-@mcp.tool()
+@mcp.tool(description=BOOK_RESERVATION_DESCRIPTION)
 def book_reservation(
     user_id: str,
     origin: str,
@@ -109,67 +167,100 @@ def book_reservation(
     )
 
 
-@mcp.tool()
+book_reservation.__doc__ = BOOK_RESERVATION_DESCRIPTION
+
+
+@mcp.tool(description=CALCULATE_DESCRIPTION)
 def calculate(operation: str) -> str:
     """Perform a calculation."""
     return Calculate.invoke(airline_data, operation)
 
 
-@mcp.tool()
+calculate.__doc__ = CALCULATE_DESCRIPTION
+
+
+@mcp.tool(description=CANCEL_RESERVATION_DESCRIPTION)
 def cancel_reservation(reservation_id: str) -> str:
     """Cancel a reservation."""
     return CancelReservation.invoke(airline_data, reservation_id)
 
 
-@mcp.tool()
+cancel_reservation.__doc__ = CANCEL_RESERVATION_DESCRIPTION
+
+
+@mcp.tool(description=GET_RESERVATION_DETAILS_DESCRIPTION)
 def get_reservation_details(reservation_id: str) -> str:
     """Get the details of a reservation."""
     return GetReservationDetails.invoke(airline_data, reservation_id)
 
 
-@mcp.tool()
+get_reservation_details.__doc__ = GET_RESERVATION_DETAILS_DESCRIPTION
+
+
+@mcp.tool(description=GET_USER_DETAILS_DESCRIPTION)
 def get_user_details(user_id: str) -> str:
     """Get the details of a user, including their reservations."""
     return GetUserDetails.invoke(airline_data, user_id)
 
 
-@mcp.tool()
+get_user_details.__doc__ = GET_USER_DETAILS_DESCRIPTION
+
+
+@mcp.tool(description=LIST_ALL_AIRPORTS_DESCRIPTION)
 def list_all_airports() -> str:
     """List all airports."""
     return ListAllAirports.invoke(airline_data)
 
 
-@mcp.tool()
+list_all_airports.__doc__ = LIST_ALL_AIRPORTS_DESCRIPTION
+
+
+@mcp.tool(description=SEARCH_DIRECT_FLIGHT_DESCRIPTION)
 def search_direct_flight(origin: str, destination: str, date: str) -> str:
     """Search direct flights between two cities on a specific date."""
     return SearchDirectFlight.invoke(airline_data, origin, destination, date)
 
 
-@mcp.tool()
+search_direct_flight.__doc__ = SEARCH_DIRECT_FLIGHT_DESCRIPTION
+
+
+@mcp.tool(description=SEARCH_ONESTOP_FLIGHT_DESCRIPTION)
 def search_onestop_flight(origin: str, destination: str, date: str) -> str:
     """Search one-stop flights between two cities on a specific date."""
     return SearchOnestopFlight.invoke(airline_data, origin, destination, date)
 
 
-@mcp.tool()
+search_onestop_flight.__doc__ = SEARCH_ONESTOP_FLIGHT_DESCRIPTION
+
+
+@mcp.tool(description=SEND_CERTIFICATE_DESCRIPTION)
 def send_certificate(user_id: str, amount: int) -> str:
     """Send a certificate to a user."""
     return SendCertificate.invoke(airline_data, user_id, amount)
 
 
-@mcp.tool()
+send_certificate.__doc__ = SEND_CERTIFICATE_DESCRIPTION
+
+
+@mcp.tool(description=THINK_DESCRIPTION)
 def think(thought: str) -> str:
     """Think about something (internal reasoning)."""
     return Think.invoke(airline_data, thought)
 
 
-@mcp.tool()
+think.__doc__ = THINK_DESCRIPTION
+
+
+@mcp.tool(description=TRANSFER_TO_HUMAN_AGENTS_DESCRIPTION)
 def transfer_to_human_agents(summary: str) -> str:
     """Transfer to human agents."""
     return TransferToHumanAgents.invoke(airline_data, summary)
 
 
-@mcp.tool()
+transfer_to_human_agents.__doc__ = TRANSFER_TO_HUMAN_AGENTS_DESCRIPTION
+
+
+@mcp.tool(description=UPDATE_RESERVATION_BAGGAGES_DESCRIPTION)
 def update_reservation_baggages(
     reservation_id: str,
     total_baggages: int,
@@ -181,7 +272,10 @@ def update_reservation_baggages(
     )
 
 
-@mcp.tool()
+update_reservation_baggages.__doc__ = UPDATE_RESERVATION_BAGGAGES_DESCRIPTION
+
+
+@mcp.tool(description=UPDATE_RESERVATION_FLIGHTS_DESCRIPTION)
 def update_reservation_flights(
     reservation_id: str,
     flights: List[Dict[str, Any]],
@@ -190,13 +284,19 @@ def update_reservation_flights(
     return UpdateReservationFlights.invoke(airline_data, reservation_id, flights)
 
 
-@mcp.tool()
+update_reservation_flights.__doc__ = UPDATE_RESERVATION_FLIGHTS_DESCRIPTION
+
+
+@mcp.tool(description=UPDATE_RESERVATION_PASSENGERS_DESCRIPTION)
 def update_reservation_passengers(
     reservation_id: str,
     passengers: List[Dict[str, Any]],
 ) -> str:
     """Update the passengers of a reservation."""
     return UpdateReservationPassengers.invoke(airline_data, reservation_id, passengers)
+
+
+update_reservation_passengers.__doc__ = UPDATE_RESERVATION_PASSENGERS_DESCRIPTION
 
 
 async def run_reload_server():
