@@ -13,7 +13,7 @@ from typing import Any, Dict, List
 
 from fastmcp import FastMCP
 from starlette.applications import Starlette
-from starlette.routing import Route, Mount
+from starlette.routing import Route
 from starlette.responses import JSONResponse
 from starlette.requests import Request
 import uvicorn
@@ -35,6 +35,7 @@ from tau_bench.envs.airline.tools import (
     UpdateReservationFlights,
     UpdateReservationPassengers,
 )
+from tau_bench.envs.base import consistent_hash, to_hashable
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -109,6 +110,11 @@ UPDATE_RESERVATION_FLIGHTS_DESCRIPTION = _format_tool_description(UpdateReservat
 UPDATE_RESERVATION_PASSENGERS_DESCRIPTION = _format_tool_description(UpdateReservationPassengers)
 
 
+def get_database_hash() -> str:
+    """Compute the current hash of the in-memory airline database."""
+    return consistent_hash(to_hashable(airline_data))
+
+
 def reload_database():
     """Reload the airline database from source files."""
     global airline_data
@@ -133,6 +139,16 @@ async def reload_endpoint(request: Request):
             "reservations": len(airline_data.get('reservations', {})),
             "users": len(airline_data.get('users', {}))
         }
+    })
+
+
+async def hash_endpoint(request: Request):
+    """REST endpoint to get the current database hash."""
+    db_hash = get_database_hash()
+    logger.info("Computed database hash via /hash endpoint: %s", db_hash)
+    return JSONResponse({
+        "status": "success",
+        "hash": db_hash,
     })
 
 
@@ -304,6 +320,7 @@ async def run_reload_server():
     reload_app = Starlette(
         routes=[
             Route("/reload", reload_endpoint, methods=["POST", "GET"]),
+            Route("/hash", hash_endpoint, methods=["GET"]),
         ]
     )
     config = uvicorn.Config(reload_app, host="0.0.0.0", port=8001, log_level="info")
@@ -318,6 +335,7 @@ if __name__ == "__main__":
     logger.info("Starting Airline Tools MCP Server with SSE")
     logger.info("MCP endpoint: http://localhost:8000/sse")
     logger.info("Reload endpoint: POST http://localhost:8001/reload")
+    logger.info("Hash endpoint: GET http://localhost:8001/hash")
 
     # Start the reload server in a separate thread
     def start_reload_server():
