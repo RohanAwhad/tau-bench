@@ -178,7 +178,7 @@ NonfreeBaggages = Annotated[int, "The number of non-free baggage items included 
 Insurance = Annotated[str, "Whether to include travel insurance: 'yes' or 'no'."]
 ReservationId = Annotated[str, "The reservation ID."]
 FlightDate = Annotated[str, "The date of the flight in the format 'YYYY-MM-DD', such as '2024-01-01'."]
-CalculationOperation = Annotated[str, "The calculation operation to perform, e.g., '2 + 2'."]
+Expression = Annotated[str, "The mathematical expression to calculate, such as '2 + 2'. The expression can contain numbers, operators (+, -, *, /), parentheses, and spaces."]
 Thought = Annotated[str, "Internal reasoning or thought process."]
 Summary = Annotated[str, "Summary of the conversation for human agents."]
 CertificateAmount = Annotated[int, "The amount of the certificate to send to the user."]
@@ -220,10 +220,10 @@ def book_reservation(
     )
 
 
-@mcp.tool(description="Perform a calculation operation.")
-def calculate(operation: CalculationOperation) -> str:
-    """Perform a calculation."""
-    return Calculate.invoke(airline_data, operation)
+@mcp.tool(description="Calculate the result of a mathematical expression.")
+def calculate(expression: Expression) -> str:
+    """Calculate the result of a mathematical expression."""
+    return Calculate.invoke(airline_data, expression)
 
 
 @mcp.tool(description="Cancel a reservation by its ID.")
@@ -293,21 +293,24 @@ def update_reservation_baggages(
     reservation_id: ReservationId,
     total_baggages: TotalBaggages,
     nonfree_baggages: NonfreeBaggages,
+    payment_id: Annotated[str, "The payment id stored in user profile, such as 'credit_card_7815826', 'gift_card_7815826', 'certificate_7815826'."],
 ) -> str:
     """Update the baggage information of a reservation."""
     return UpdateReservationBaggages.invoke(
-        airline_data, reservation_id, total_baggages, nonfree_baggages
+        airline_data, reservation_id, total_baggages, nonfree_baggages, payment_id
     )
 
 
-@mcp.tool(description="Update the flights of an existing reservation.")
+@mcp.tool(description="Update the flight information of a reservation.")
 def update_reservation_flights(
     reservation_id: ReservationId,
+    cabin: Cabin,
     flights: FlightsList,
+    payment_id: Annotated[str, "The payment id stored in user profile, such as 'credit_card_7815826', 'gift_card_7815826', 'certificate_7815826'."],
 ) -> str:
-    """Update the flights of a reservation."""
+    """Update the flight information of a reservation."""
     flights_dicts = [f.model_dump() for f in flights]
-    return UpdateReservationFlights.invoke(airline_data, reservation_id, flights_dicts)
+    return UpdateReservationFlights.invoke(airline_data, reservation_id, cabin, flights_dicts, payment_id)
 
 
 @mcp.tool(description="Update the passengers of an existing reservation.")
