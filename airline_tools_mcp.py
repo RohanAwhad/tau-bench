@@ -322,6 +322,10 @@ def update_reservation_passengers(
     passengers: PassengersList,
 ) -> str:
     """Update the passengers of a reservation."""
+    passengers_dicts = [p.model_dump() for p in passengers]
+    return UpdateReservationPassengers.invoke(airline_data, reservation_id, passengers_dicts)
+
+
 def run_hash_smoke_test() -> None:
     """CLI helper to verify reload and hash behavior."""
     logger.info("Running database reload/hash smoke test")
@@ -386,8 +390,6 @@ def run_hash_smoke_test() -> None:
             f"Database did not reset cleanly: {final_hash} (expected {baseline_hash})"
         )
     logger.info("Reload restored baseline hash: %s", final_hash)
-    passengers_dicts = [p.model_dump() for p in passengers]
-    return UpdateReservationPassengers.invoke(airline_data, reservation_id, passengers_dicts)
 
 
 async def run_reload_server():
