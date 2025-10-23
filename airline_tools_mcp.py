@@ -129,20 +129,14 @@ class PassengerInfo(BaseModel):
 
 class PaymentMethod(BaseModel):
     payment_id: str = Field(description="The payment id stored in user profile, such as 'credit_card_7815826', 'gift_card_7815826', 'certificate_7815826'.")
-    amount: float = Field(description="The amount to be paid.")
+    amount: int = Field(description="The amount to be paid.")
 
 
 def reload_database():
     """Reload the airline database from source files."""
     global airline_data
     logger.info("Reloading airline database...")
-    new_data = load_data()
-    airline_data.clear()
-    airline_data.update(new_data)
-    logger.info(f"Database reloaded: {len(airline_data.get('flights', {}))} flights, "
-                f"{len(airline_data.get('reservations', {}))} reservations, "
-                f"{len(airline_data.get('users', {}))} users")
-    return airline_data
+    airline_data = load_data()
 
 
 async def reload_endpoint(request: Request):
